@@ -1,0 +1,6 @@
+{
+  "name": "AI Smart Study Assistant",
+  "description": "AI-powered semester exam preparation companion for college students at Rathinam Technical Campus (AI&DS). Featuring mark-based answer generation, Tamil translation, audio reading, question prediction, practice tests, and study analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
