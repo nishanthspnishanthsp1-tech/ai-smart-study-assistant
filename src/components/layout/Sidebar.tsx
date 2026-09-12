@@ -14,6 +14,7 @@ import {
   UserPlus,
   BrainCircuit,
   GraduationCap,
+  Repeat,
   X,
 } from "lucide-react";
 import { StudentProfile, AdminProfile } from "../../types";
@@ -22,6 +23,7 @@ export type StudentNavTab =
   | "dashboard"
   | "upload"
   | "saved"
+  | "revision"
   | "history"
   | "test"
   | "prediction"
@@ -57,8 +59,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: "upload", label: "File Upload", icon: <UploadCloud className="h-4 w-4" />, badge: "AI" },
     { id: "saved", label: "Saved Questions", icon: <BookmarkCheck className="h-4 w-4" /> },
+    { id: "revision", label: "Revision & Patterns", icon: <Repeat className="h-4 w-4" />, badge: "Prep" },
     { id: "history", label: "History", icon: <History className="h-4 w-4" /> },
-    { id: "test", label: "Test", icon: <CheckSquare className="h-4 w-4" /> },
+    { id: "test", label: "Practice Test", icon: <CheckSquare className="h-4 w-4" />, badge: "AI" },
     { id: "prediction", label: "Question Prediction", icon: <Sparkles className="h-4 w-4" />, badge: "Exam" },
     { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
   ];

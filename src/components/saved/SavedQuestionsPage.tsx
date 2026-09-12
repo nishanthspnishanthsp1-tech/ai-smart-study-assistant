@@ -15,6 +15,7 @@ import {
 import { QuestionItem } from "../../types";
 import { QuestionCard } from "../questions/QuestionCard";
 import { speechService } from "../../services/speechService";
+import { appStore } from "../../services/store";
 
 interface SavedQuestionsPageProps {
   savedQuestions: QuestionItem[];
@@ -206,6 +207,12 @@ export const SavedQuestionsPage: React.FC<SavedQuestionsPageProps> = ({
                   onToggleSave(id);
                   setSelectedQuestionForModal((prev) =>
                     prev ? { ...prev, isSaved: !prev.isSaved } : null
+                  );
+                }}
+                onToggleComplete={(id) => {
+                  appStore.toggleQuestionCompleted(id);
+                  setSelectedQuestionForModal((prev) =>
+                    prev ? { ...prev, isCompleted: !prev.isCompleted } : null
                   );
                 }}
               />

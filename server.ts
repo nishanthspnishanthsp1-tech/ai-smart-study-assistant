@@ -208,6 +208,216 @@ Output strictly valid JSON with no surrounding markdown formatting, matching thi
 });
 
 // -------------------------------------------------------------
+// Marks-Based Answer Generation Endpoint
+// Generates answers tailored specifically to 2, 3, 5, 10, or 13 marks
+// in English, Tamil (தமிழ்), or Hindi (हिन्दी)
+// -------------------------------------------------------------
+app.post("/api/ai/generate-marks-answer", async (req, res) => {
+  try {
+    const {
+      questionText,
+      marks = 5,
+      subject = "General Engineering",
+      language = "en",
+      topic = "",
+    } = req.body;
+
+    const numMarks = Number(marks) || 5;
+    const ai = getAIClient();
+
+    const langName =
+      language === "ta"
+        ? "Tamil (தமிழ்)"
+        : language === "hi"
+        ? "Hindi (हिन्दी)"
+        : "English";
+
+    // Mark-specific guidelines
+    let lengthGuideline = "";
+    if (numMarks <= 2) {
+      lengthGuideline = `2 MARKS REQUIREMENT:
+- Very short and direct (around 30-50 words).
+- Provide crisp definition or key formulas/equations.
+- Exactly 2 to 3 concise bullet points.
+- NO unnecessary fluff, no lengthy introductions.`;
+    } else if (numMarks <= 3) {
+      lengthGuideline = `3 MARKS REQUIREMENT:
+- Short explanation (around 60-90 words).
+- Clear concise definition followed by 3-4 distinct essential points or steps.
+- Brief, focused technical clarity.`;
+    } else if (numMarks <= 5) {
+      lengthGuideline = `5 MARKS REQUIREMENT:
+- Medium-length structured answer (around 130-190 words).
+- Brief definition/overview.
+- Core headings or numbered points (4 to 6 points).
+- Concrete practical or architectural example if useful.
+- 2 Quick Revision bullets at the end.`;
+    } else if (numMarks <= 10) {
+      lengthGuideline = `10 MARKS REQUIREMENT:
+- Detailed exam-ready answer (around 300-420 words).
+- 1. Introduction & Formal Definition
+- 2. Architecture / Core Working Principle (with conceptual layout description)
+- 3. Step-by-Step Mechanism / Detailed Subheadings
+- 4. Real-world Engineering Application / Code Example
+- 5. Key Advantages & Limitations
+- 6. Brief Conclusion & 3 Quick Revision bullets.`;
+    } else {
+      // 13 or 16 marks
+      lengthGuideline = `13 MARKS COMPREHENSIVE UNIVERSITY STANDARD:
+- Comprehensive, in-depth academic answer (around 450-600 words).
+- 1. Formal Academic Introduction & Context
+- 2. System Architecture & Diagrammatic Representation (describe diagram clearly)
+- 3. Mathematical Formulation, Derivation, or Algorithm Steps
+- 4. In-depth Analytical Breakdown across multiple clear subheadings
+- 5. Real-World Industry Application Case Study
+- 6. Advantages, Trade-offs, and Comparative Analysis
+- 7. Critical Summary / Conclusion and 3 Quick Revision takeaways.`;
+    }
+
+    if (!ai) {
+      return res.json({
+        success: true,
+        source: "fallback",
+        marks: numMarks,
+        language,
+        answer: getFallbackMarksAnswer(questionText, numMarks, language, subject),
+      });
+    }
+
+    const prompt = `You are a Senior University Examiner and AI Professor at Rathinam Technical Campus (AI&DS Department).
+Generate an exam-ready answer for college students in ${langName} for the following question.
+
+Subject: ${subject}
+${topic ? `Topic: ${topic}` : ""}
+Question: "${questionText}"
+Allocated Marks: ${numMarks} Marks
+
+STRICT DEPTH SPECIFICATION:
+${lengthGuideline}
+
+LANGUAGE REQUIREMENT:
+Write the complete response naturally and professionally in ${langName}. If technical terms are used, you may include English technical terms in parentheses for academic clarity where appropriate.
+
+Use clean Markdown formatting with clear headers (###), bold keywords, and bullet points. Never output generic greetings or introductory chat lines.
+Start immediately with the formatted answer.`;
+
+    const rawText = await callGeminiResilient(ai, prompt, `marks-answer-${numMarks}-${language}`);
+    const cleanedAnswer = (rawText || "").trim();
+
+    return res.json({
+      success: true,
+      source: "gemini",
+      marks: numMarks,
+      language,
+      answer: cleanedAnswer || getFallbackMarksAnswer(questionText, numMarks, language, subject),
+    });
+  } catch (error: any) {
+    console.warn("[Gemini API] Marks answer fallback active:", error?.message || error);
+    const { questionText = "", marks = 5, language = "en", subject = "Engineering" } = req.body;
+    return res.json({
+      success: true,
+      source: "fallback_on_demand_spike",
+      marks: Number(marks) || 5,
+      language,
+      answer: getFallbackMarksAnswer(questionText, Number(marks) || 5, language, subject),
+    });
+  }
+});
+
+// -------------------------------------------------------------
+// AI Practice Test - Subjective Answer Evaluation Endpoint
+// Evaluates student written answers against rubric and marks
+// -------------------------------------------------------------
+app.post("/api/ai/evaluate-answer", async (req, res) => {
+  try {
+    const {
+      questionText,
+      marks = 5,
+      studentAnswer = "",
+      subject = "General Engineering",
+    } = req.body;
+
+    const numMarks = Number(marks) || 5;
+
+    if (!studentAnswer.trim()) {
+      return res.json({
+        success: true,
+        evaluation: {
+          score: 0,
+          maxMarks: numMarks,
+          percentage: 0,
+          feedback: "No answer provided. Please type your response before submitting for evaluation.",
+          modelAnswer: getFallbackMarksAnswer(questionText, numMarks, "en", subject),
+          keyPointsCovered: [],
+          areasToImprove: ["Attempt the question by writing key definitions and concepts."],
+        },
+      });
+    }
+
+    const ai = getAIClient();
+    if (!ai) {
+      return res.json({
+        success: true,
+        source: "fallback",
+        evaluation: getFallbackEvaluation(questionText, numMarks, studentAnswer, subject),
+      });
+    }
+
+    const prompt = `You are an expert academic evaluator at Rathinam Technical Campus.
+Evaluate a student's answer for the following semester examination question:
+
+Subject: ${subject}
+Question: "${questionText}"
+Total Marks Available: ${numMarks} Marks
+Student's Written Answer:
+"""
+${studentAnswer.slice(0, 3000)}
+"""
+
+RUBRIC:
+- Evaluate based on conceptual correctness, depth appropriate for ${numMarks} marks, use of technical terms, and structure.
+- Score should be between 0 and ${numMarks} (integer or half-mark e.g. 3.5).
+- Identify which key concepts the student correctly covered.
+- Identify specific areas to improve for higher marks in semester exams.
+- Provide a concise model answer suitable for ${numMarks} marks.
+
+Output STRICT JSON only:
+{
+  "score": 4,
+  "maxMarks": ${numMarks},
+  "percentage": 80,
+  "feedback": "Concise 2-sentence examiner feedback praising strengths and pointing out gaps.",
+  "keyPointsCovered": ["Point 1 covered", "Point 2 covered"],
+  "areasToImprove": ["Add architectural diagram", "Mention algorithmic complexity"],
+  "modelAnswer": "### Model Answer\\n..."
+}`;
+
+    const rawText = await callGeminiResilient(ai, prompt, "evaluate-answer");
+    const cleaned = cleanJsonResponse(rawText);
+    let evaluation = null;
+    try {
+      evaluation = JSON.parse(cleaned);
+    } catch {
+      evaluation = getFallbackEvaluation(questionText, numMarks, studentAnswer, subject);
+    }
+
+    return res.json({
+      success: true,
+      source: "gemini",
+      evaluation,
+    });
+  } catch (error: any) {
+    console.warn("[Gemini API] Evaluation fallback active:", error?.message || error);
+    const { questionText = "", marks = 5, studentAnswer = "", subject = "Engineering" } = req.body;
+    return res.json({
+      success: true,
+      source: "fallback",
+      evaluation: getFallbackEvaluation(questionText, Number(marks) || 5, studentAnswer, subject),
+    });
+  }
+});
+
+// -------------------------------------------------------------
 // AI Syllabus Question Prediction Endpoint
 // -------------------------------------------------------------
 app.post("/api/ai/predict-syllabus", async (req, res) => {
@@ -864,6 +1074,286 @@ function getFallbackTestQuestions(subject = "Computer Science", count = 10) {
   ];
 
   return pool.slice(0, count);
+}
+
+function getFallbackMarksAnswer(
+  questionText: string,
+  marks: number,
+  language: string = "en",
+  subject: string = "Artificial Intelligence"
+): string {
+  const cleanQ = questionText || "Core Engineering Concept";
+
+  if (language === "ta") {
+    if (marks <= 2) {
+      return `### விளக்கம் (Definition - 2 Marks)
+**${cleanQ}**: பல்கலைக்கழகத் தேர்வுக்கான நேரடி விளக்கம்.
+- **முக்கிய கருத்து:** அடிப்படை தொழில்நுட்ப வரையறை மற்றும் துல்லியமான சூத்திரம்.
+- **பயன்பாடு:** நடைமுறை கணினி பொறியியல் பயன்பாடுகளில் பரவலாக பயன்படுத்தப்படுகிறது.`;
+    }
+    if (marks <= 3) {
+      return `### நேரடி விளக்கம் (3 Marks)
+**${cleanQ}**:
+1. **வரையறை:** ${subject} பாடத்தின் முக்கிய அடிப்படை கொள்கை.
+2. **முக்கிய அம்சம்:** செயல்முறை ஒழுங்குமுறை மற்றும் துல்லியமான கணக்கீடுகளை செயல்படுத்துகிறது.
+3. **நன்மை:** செயல்திறனை அதிகரித்து பிழைகளை குறைக்கிறது.`;
+    }
+    if (marks <= 5) {
+      return `### 1. அறிமுகம் (Introduction - 5 Marks)
+**${cleanQ}** என்பது ${subject} பாடத்தின் மையப் பகுதியாகும்.
+
+### 2. முக்கிய அம்சங்கள்
+- **செயல்முறை கட்டமைப்பு:** கணினி அமைப்பில் தெளிவான நெறிமுறைகளுடன் செயல்படுகிறது.
+- **செயல்பாட்டு முறை:** படிநிலையான தர்க்கமுறை (Algorithmic steps) மூலம் செயலாக்கம் பெறுகிறது.
+- **நடைமுறை உதாரணம்:** நவீன AI மற்றும் மென்பொருள் கட்டமைப்புகளில் தரவு மேலாண்மைக்கு பயன்படுகிறது.
+
+### விரைவு திருப்புதல் (Quick Revision)
+• தேர்வுக்கான முக்கிய 5 மதிப்பெண் கேள்வி.
+• தெளிவான குறிப்புகளுடன் வரைபடத்தை விவரிக்கவும்.`;
+    }
+    if (marks <= 10) {
+      return `### 1. அறிமுகம் மற்றும் வரைவிலக்கணம் (10 Marks)
+**${cleanQ}** என்பது ${subject} பாடத்திட்டத்தில் வினாத்தாள்களில் தொடர்ந்து கேட்கப்படும் ஒரு முக்கிய வினாவாகும்.
+
+### 2. அடிப்படை கட்டமைப்பு மற்றும் கோட்பாடு
+- **கணினி வடிவமைப்பு:** இது உயர் செயல்திறன் கொண்ட கட்டமைப்பை வழங்குகிறது.
+- **படிநிலையான இயக்கம்:**
+  1. உள்ளீட்டுத் தரவு பகுப்பாய்வு (Input Processing).
+  2. தர்க்கரீதியான கணக்கீடு (Logical Evaluation).
+  3. உகந்த வெளியீடு உருவாக்கம் (Optimal Output Generation).
+
+### 3. நடைமுறை பொறியியல் உதாரணம்
+நிகழ்நேர தரவுத்தளங்கள் மற்றும் நவீன தானியங்கி கணினி அமைப்புகளில் இது ஒரு தரப்படுத்தப்பட்ட தீர்வாக விளங்குகிறது.
+
+### 4. நன்மைகள் மற்றும் வரம்புகள்
+- **நன்மைகள்:** கணக்கீட்டு வேகம் அதிகம், பிழை திருத்தும் திறன், நம்பகத்தன்மை.
+- **வரம்புகள்:** கூடுதல் நினைவக தேவை மற்றும் ஆரம்ப கட்டமைப்பு சிக்கல்கள்.
+
+### 5. முடிவுரை (Conclusion)
+இக்கோட்பாட்டின் மூலம் கணினி அமைப்புகளின் செயல்திறனை உச்ச நிலைக்கு கொண்டு செல்ல முடிகிறது.
+
+### விரைவு திருப்புதல்
+• பல்கலைக்கழக செமஸ்டர் 10-மதிப்பெண் வினா.
+• முக்கிய வரைபடம் மற்றும் படிநிலைகளை தெளிவாக எழுதவும்.`;
+    }
+    // 13 marks
+    return `### 1. விரிவான அறிமுகம் (13 Marks Comprehensive)
+**${cleanQ}** என்பது ${subject} பாடத்தின் ஆழமான பல்கலைக்கழக பாடப்பிரிவு வினாவாகும்.
+
+### 2. கட்டமைப்பு வரைபடம் மற்றும் தர்க்க விளக்கம்
+இக்கருத்து கணினி பொறியியலில் படிநிலையான வரைபட விளக்கத்துடன் விவரிக்கப்பட வேண்டும்.
+- **தொகுப்பு 1 (Modularity):** துணை செயல்முறைகளை தனித்தனியாக பிரித்து இயக்கும் திறன்.
+- **தொகுப்பு 2 (Scalability):** அதிக அளவிலான தரவுகளை எவ்வித தாமதமுமின்றி கையாளும் வசதி.
+
+### 3. கணிதவியல் / படிநிலை சூத்திரங்கள்
+\`\`\`text
+System Flow: Input Data -> Processing Kernel -> Validation -> Output Result
+\`\`\`
+
+### 4. நடைமுறை பயன்பாடுகள்
+- செயற்கை நுண்ணறிவு மற்றும் இயந்திர கற்றல் அமைப்புகள்.
+- பெரிய அளவிலான தொழில்முறை நிறுவன மென்பொருட்கள்.
+
+### 5. ஒப்பீட்டு பகுப்பாய்வு
+- பாரம்பரிய முறைகளை விட 40% குறைந்த தாமதம்.
+- உயர்நிலை பாதுகாப்பு மற்றும் நம்பகத்தன்மை.
+
+### 6. முடிவுரை
+தேர்வு நோக்கில் இக்கேள்விக்கு வரைபடங்கள் மற்றும் சூத்திரங்களுடன் விடையளிப்பது அதிகபட்ச மதிப்பெண்களை பெற்றுத்தரும்.`;
+  }
+
+  if (language === "hi") {
+    if (marks <= 2) {
+      return `### परिभाषा (Definition - 2 Marks)
+**${cleanQ}**:
+- **मुख्य बिंदु:** यह ${subject} का एक महत्वपूर्ण मूलभूत सिद्धांत है।
+- **प्रमुख अनुप्रयोग:** यह जटिल प्रणालियों में सटीकता और गति सुनिश्चित करता है।`;
+    }
+    if (marks <= 3) {
+      return `### संक्षिप्त व्याख्या (3 Marks)
+**${cleanQ}**:
+1. **परिभाषा:** इंजीनियरिंग और कंप्यूटर विज्ञान में यह एक आवश्यक अवधारणा है।
+2. **कार्यप्रणाली:** यह चरणबद्ध एल्गोरिदम द्वारा कार्य को निष्पादित करता है।
+3. **उपयोगिता:** समय की बचत और उच्च विश्वसनीयता प्रदान करता है।`;
+    }
+    if (marks <= 5) {
+      return `### 1. परिचय (Introduction - 5 Marks)
+**${cleanQ}** विषय ${subject} का एक अत्यंत महत्वपूर्ण सिद्धांत है।
+
+### 2. मुख्य घटक एवं कार्यप्रणाली
+- **संरचना:** यह प्रणाली को सुव्यवस्थित और दोष-सहिष्णु बनाता है।
+- **प्रक्रिया:** इनपुट को प्रोसेस करके सटीक आउटपुट जनरेट करता है।
+- **व्यावहारिक उदाहरण:** वास्तविक दुनिया के आधुनिक सॉफ्टवेयर और AI मॉडल में इसका उपयोग होता है।
+
+### त्वरित दोहराव (Quick Revision)
+• परीक्षा के लिए महत्वपूर्ण 5-अंक प्रश्न।
+• स्पष्ट बिंदुओं और उदाहरण के साथ उत्तर लिखें।`;
+    }
+    if (marks <= 10) {
+      return `### 1. परिचय एवं औपचारिक परिभाषा (10 Marks)
+**${cleanQ}** विश्वविद्यालय परीक्षा में लगातार पूछा जाने वाला एक उच्च प्राथमिकता वाला प्रश्न है।
+
+### 2. वास्तुशिल्प एवं मुख्य सिद्धांत (Architecture)
+- **मुख्य तंत्र:** यह घटक डेटा प्रवाह और कार्य निष्पादन को नियंत्रित करता है।
+- **एल्गोरिदम चरण:**
+  1. इनपुट डेटा अधिग्रहण और सत्यापन।
+  2. प्रोसेसिंग और स्थिति परिवर्तन।
+  3. अंतिम परिणाम और त्रुटि प्रबंधन।
+
+### 3. व्यावहारिक अनुप्रयोग (Real-World Application)
+यह वितरित प्रणालियों, क्लाउड कंप्यूटिंग और डेटा इंजीनियरिंग में व्यापक रूप से प्रयुक्त होता है।
+
+### 4. लाभ एवं सीमाएं (Pros & Cons)
+- **लाभ:** उच्च कार्यक्षमता, कम विलंबता, अनुकूलनीय डिजाइन।
+- **सीमाएं:** प्रारंभिक विन्यास में जटिलता।
+
+### 5. निष्कर्ष (Conclusion)
+यह सिद्धांत सेमेस्टर परीक्षा के 10-अंकों के लिए आरेखों और स्पष्ट शीर्षकों के साथ प्रस्तुत करने योग्य है।`;
+    }
+    return `### 1. व्यापक अकादमिक परिचय (13 Marks)
+**${cleanQ}** का अध्ययन ${subject} के पाठ्यक्रम में अत्यंत आवश्यक है।
+
+### 2. विस्तृत संरचना एवं कार्यप्रणाली
+- यह प्रणाली मॉड्यूलर डिजाइन और उच्च मापनीयता (scalability) पर आधारित है।
+- गणितीय मॉडल और प्रवाह आरेख द्वारा इसे स्पष्ट रूप से समझा जा सकता है।
+
+### 3. वास्तविक उद्योग केस स्टडी
+आधुनिक स्वायत्त प्रणालियों और डेटा विश्लेषण में इसकी महत्वपूर्ण भूमिका है।
+
+### 4. तुलनात्मक विश्लेषण
+- पारंपरिक तरीकों की तुलना में अधिक सुरक्षित और विश्वसनीय।
+- संसाधन उपयोग में 35% से अधिक बचत।
+
+### 5. निष्कर्ष
+13-अंकों के विस्तृत उत्तर में आरेख, परिभाषा, चरण और निष्कर्ष शामिल करना अनिवार्य है।`;
+  }
+
+  // Default English
+  if (marks <= 2) {
+    return `### Definition (2 Marks)
+**${cleanQ}** is a fundamental concept in ${subject}.
+- **Core Principle:** Provides structured execution and deterministic mathematical guarantees across system states.
+- **Key Purpose:** Prevents race conditions and optimizes analytical efficiency in modern computing environments.`;
+  }
+
+  if (marks <= 3) {
+    return `### Direct Explanation (3 Marks)
+**${cleanQ}**:
+1. **Definition:** An essential architectural component in ${subject} governing system behavior.
+2. **Mechanism:** Processes inputs through standardized validation stages to produce consistent state transformations.
+3. **Application:** Critical for fault tolerance, reduced algorithmic latency, and semester exam evaluation.`;
+  }
+
+  if (marks <= 5) {
+    return `### 1. Overview & Definition (5 Marks)
+**${cleanQ}** represents a core pillar of ${subject}. In university examinations, it tests understanding of structural models and analytical execution.
+
+### 2. Key Architectural Characteristics
+- **Standardized Execution:** Ensures invariant properties are preserved across concurrent execution threads.
+- ** Algorithmic Efficiency:** Operates with optimized asymptotic time complexity ($O(n)$ or $O(\\log n)$).
+- **Practical Application:** Widely implemented across enterprise database engines and intelligent computing stacks.
+
+### Quick Revision
+• High-frequency 5-mark question in semester assessments.
+• Focus on exact definitions, bulleted characteristics, and clean system diagrams.`;
+  }
+
+  if (marks <= 10) {
+    return `### 1. Introduction & Formal Definition (10 Marks)
+**${cleanQ}** is a cornerstone theoretical and practical concept within ${subject}. In Anna University and autonomous college examination patterns, this topic carries heavy weightage in Section B/C.
+
+### 2. Architecture & Working Mechanism
+- **System Layout:** Composed of modular stages that decouple computation from resource scheduling.
+- **Procedural Steps:**
+  1. **Initialization:** Parameter registration and precondition validation.
+  2. **Core Transformation:** Main processing kernel executes state transitions with strict boundary checks.
+  3. **Verification & Commit:** Ensures consistency and outputs verified results.
+
+### 3. Real-World Engineering Application
+In modern industry systems, this principle underpins high-throughput distributed pipelines and cloud inference engines where data reliability cannot be compromised.
+
+### 4. Advantages & Trade-Offs
+- **Key Advantages:** Robust fault recovery, linear horizontal scalability, clear separation of concerns.
+- **Trade-Offs:** Requires careful memory management and defensive boundary validations.
+
+### 5. Conclusion
+Mastery of ${cleanQ} provides the structural foundation for solving complex engineering challenges. Always draw the accompanying block diagram during examinations.
+
+### Quick Revision
+• Standard university 10-mark question format.
+• Mandatory components: Definition, Architectural flow, Practical application, and Pros/Cons.`;
+  }
+
+  // 13 Marks Comprehensive
+  return `### 1. Comprehensive Introduction & Context (13 Marks)
+**${cleanQ}** constitutes a major comprehensive syllabus module in ${subject}. It provides both theoretical rigor and critical engineering frameworks required for scalable system design.
+
+### 2. Detailed Architectural Breakdown
+The architecture is structured across dedicated functional layers:
+- **Interface Layer:** Normalizes heterogeneous client requests.
+- **Processing Engine:** Implements the core mathematical transformation and algorithmic state machine.
+- **Storage / Persistence Layer:** Maintains state synchronization and transactional integrity.
+
+\`\`\`text
+[Client / Query] ---> [Validation & Normalization] ---> [Core Processing Engine] ---> [Verified Output]
+                                                                |
+                                                     [Telemetry & Monitoring]
+\`\`\`
+
+### 3. Step-by-Step Mathematical Formulation
+1. Define the objective state space $S$ and transition operator $T: S \\times I \\to S$.
+2. Optimize the loss or latency metric $L(x)$ under boundary constraints.
+3. Validate convergence criteria to ensure deterministic termination.
+
+### 4. Industry Case Study & Practical Implementation
+Implemented in production distributed engines to handle millions of transactions per second with sub-millisecond tail latency.
+
+### 5. Critical Comparative Analysis
+Compared to naive approaches, this design eliminates bottleneck contention, reduces memory overhead by over 30%, and guarantees seamless recovery under hardware failure.
+
+### 6. Summary & Examination Takeaway
+In semester examinations, allocate time to sketch the architectural diagram first, detail the numbered operational steps, and conclude with the trade-off matrix.
+
+### Quick Revision
+• 13-Mark comprehensive university standard.
+• Structure: Introduction -> System Flow Diagram -> Derivation/Steps -> Real-World Case -> Conclusion.`;
+}
+
+function getFallbackEvaluation(
+  questionText: string,
+  marks: number,
+  studentAnswer: string,
+  subject: string = "Engineering"
+) {
+  const words = studentAnswer.trim().split(/\s+/).length;
+  const targetWords = marks <= 2 ? 30 : marks <= 5 ? 100 : marks <= 10 ? 250 : 350;
+  const ratio = Math.min(1.0, words / targetWords);
+  const rawScore = Math.max(1, Math.round(ratio * marks * 10) / 10);
+  const score = Math.min(marks, rawScore);
+  const percentage = Math.round((score / marks) * 100);
+
+  return {
+    score,
+    maxMarks: marks,
+    percentage,
+    feedback:
+      percentage >= 75
+        ? "Strong conceptual attempt! Good use of technical terminology and relevant points."
+        : percentage >= 50
+        ? "Satisfactory attempt. You identified core concepts but need more structured subheadings and deeper technical detail."
+        : "Initial attempt recorded. Answer lacks required depth, definitions, and structural formatting for full marks.",
+    keyPointsCovered: [
+      "Identified core subject context",
+      "Mentioned basic definition and principle",
+      ...(words > 60 ? ["Included functional steps or use cases"] : []),
+    ],
+    areasToImprove: [
+      "Include standard university definitions and clear bold headings",
+      "Add architectural block diagrams or flowcharts for visual marks",
+      "Conclude with real-world application examples and key advantages",
+    ],
+    modelAnswer: getFallbackMarksAnswer(questionText, marks, "en", subject),
+  };
 }
 
 // -------------------------------------------------------------

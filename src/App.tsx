@@ -6,6 +6,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { StudentDashboardHome } from "./components/dashboard/StudentDashboardHome";
 import { FileUploadPage } from "./components/upload/FileUploadPage";
 import { SavedQuestionsPage } from "./components/saved/SavedQuestionsPage";
+import { RevisionPage } from "./components/revision/RevisionPage";
 import { HistoryPage } from "./components/history/HistoryPage";
 import { TestPage } from "./components/test/TestPage";
 import { QuestionPredictionPage } from "./components/prediction/QuestionPredictionPage";
@@ -220,6 +221,13 @@ export default function App() {
               savedQuestions={savedQuestions}
               onToggleSave={handleToggleSaveQuestion}
               onNavigateToUpload={() => setActiveTab("upload")}
+            />
+          )}
+
+          {isStudent && activeTab === "revision" && (
+            <RevisionPage
+              onToggleSave={handleToggleSaveQuestion}
+              onNavigateToTest={() => setActiveTab("test")}
             />
           )}
 

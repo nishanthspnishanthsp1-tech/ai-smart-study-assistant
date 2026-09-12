@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { UploadedFile } from "../../types";
 import { QuestionCard } from "../questions/QuestionCard";
+import { appStore } from "../../services/store";
 
 interface HistoryPageProps {
   files: UploadedFile[];
@@ -111,6 +112,19 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({
                 question={q}
                 index={idx}
                 onToggleSave={onToggleSave}
+                onToggleComplete={(id) => {
+                  appStore.toggleQuestionCompleted(id);
+                  setActiveFileDetails((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          questions: prev.questions.map((item) =>
+                            item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
+                          ),
+                        }
+                      : null
+                  );
+                }}
               />
             ))
           ) : (

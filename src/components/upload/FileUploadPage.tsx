@@ -443,6 +443,14 @@ export const FileUploadPage: React.FC<FileUploadPageProps> = ({
                     )
                   );
                 }}
+                onToggleComplete={(id) => {
+                  appStore.toggleQuestionCompleted(id);
+                  setAnalyzedQuestions((prev) =>
+                    prev.map((item) =>
+                      item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
+                    )
+                  );
+                }}
               />
             ))}
           </div>

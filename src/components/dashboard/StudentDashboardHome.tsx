@@ -13,6 +13,8 @@ import {
   Calendar,
   Activity,
   Award,
+  Repeat,
+  BookmarkCheck,
 } from "lucide-react";
 import { StudentProfile, DashboardStats, ActivityLog } from "../../types";
 
@@ -86,11 +88,18 @@ export const StudentDashboardHome: React.FC<StudentDashboardHomeProps> = ({
               <span>Upload Question Paper</span>
             </button>
             <button
+              onClick={() => onNavigate("revision")}
+              className="flex items-center gap-2 rounded-xl bg-blue-800/80 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-blue-800 border border-white/20"
+            >
+              <Repeat className="h-4 w-4 text-purple-300" />
+              <span>Revision & Repeated Qs</span>
+            </button>
+            <button
               onClick={() => onNavigate("test")}
               className="flex items-center gap-2 rounded-xl bg-blue-800/80 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-blue-800 border border-white/20"
             >
               <CheckSquare className="h-4 w-4" />
-              <span>Take Practice Test</span>
+              <span>Practice & Test</span>
             </button>
             <button
               onClick={() => onNavigate("prediction")}
@@ -107,91 +116,136 @@ export const StudentDashboardHome: React.FC<StudentDashboardHomeProps> = ({
         <div className="absolute top-0 right-1/4 h-32 w-32 rounded-full bg-blue-400/20 blur-xl pointer-events-none" />
       </div>
 
-      {/* 2. Dashboard Statistic Cards (6 requested cards) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
+      {/* 2. Dashboard Statistic Cards (Updated with Repeated Qs and Revision Progress) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8 sm:gap-3.5">
         {/* Card 1: Files Uploaded */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        <div
+          onClick={() => onNavigate("history")}
+          className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Files Uploaded</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <FileText className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-slate-500">Files</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <FileText className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900">{stats.filesUploaded}</span>
-            <p className="text-[10px] text-slate-400 mt-0.5">Question papers & docs</p>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-slate-900">{stats.filesUploaded}</span>
+            <p className="text-[9px] text-slate-400 mt-0.5">Uploaded docs</p>
           </div>
         </div>
 
         {/* Card 2: Questions Generated */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        <div
+          onClick={() => onNavigate("upload")}
+          className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Total Questions</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <HelpCircle className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-slate-500">Total Qs</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <HelpCircle className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900">{stats.questionsGenerated}</span>
-            <p className="text-[10px] text-indigo-600 mt-0.5 font-medium">Mark-based answers</p>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-slate-900">{stats.questionsGenerated}</span>
+            <p className="text-[9px] text-indigo-600 mt-0.5 font-medium">Mark answers</p>
           </div>
         </div>
 
-        {/* Card 3: Questions Completed */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        {/* Card 3: Repeated Questions */}
+        <div
+          onClick={() => onNavigate("revision")}
+          className="cursor-pointer rounded-2xl border border-purple-200/80 bg-purple-50/20 p-3.5 shadow-xs transition-all hover:border-purple-400 hover:shadow-md"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Completed</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <CheckCircle className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-purple-800">Repeated</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
+              <Repeat className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900">{stats.questionsCompleted}</span>
-            <p className="text-[10px] text-emerald-600 mt-0.5 font-medium">Revision finished</p>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-purple-700">{stats.repeatedQuestions}</span>
+            <p className="text-[9px] text-purple-600 mt-0.5 font-medium">Frequent Qs</p>
           </div>
         </div>
 
-        {/* Card 4: Important Questions */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        {/* Card 4: Saved Bookmarks */}
+        <div
+          onClick={() => onNavigate("saved")}
+          className="cursor-pointer rounded-2xl border border-amber-200/80 bg-amber-50/20 p-3.5 shadow-xs transition-all hover:border-amber-400 hover:shadow-md"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Important Qs</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-              <Star className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-amber-800">Saved</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+              <BookmarkCheck className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-amber-600">{stats.importantQuestions}</span>
-            <p className="text-[10px] text-amber-700 mt-0.5 font-medium">High priority</p>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-amber-700">{stats.savedAnswers}</span>
+            <p className="text-[9px] text-amber-600 mt-0.5 font-medium">Bookmarks</p>
           </div>
         </div>
 
-        {/* Card 5: Tests Taken */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        {/* Card 5: Completed Questions */}
+        <div
+          onClick={() => onNavigate("revision")}
+          className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Tests Taken</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-              <CheckSquare className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-slate-500">Prepared</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <CheckCircle className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-slate-900">{stats.testsTaken}</span>
-            <p className="text-[10px] text-purple-600 mt-0.5 font-medium">Practice quizzes</p>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-slate-900">{stats.questionsCompleted}</span>
+            <p className="text-[9px] text-emerald-600 mt-0.5 font-medium">{stats.revisionProgress}% done</p>
           </div>
         </div>
 
-        {/* Card 6: Average Test Score */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+        {/* Card 6: Important Questions */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Average Score</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
-              <TrendingUp className="h-4 w-4" />
+            <span className="text-[10px] font-semibold text-slate-500">High Priority</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+              <Star className="h-3.5 w-3.5" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-blue-600">{stats.averageScore}%</span>
-            <span className="text-[10px] font-bold text-emerald-600">Best {stats.bestScore}%</span>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-amber-600">{stats.importantQuestions}</span>
+            <p className="text-[9px] text-amber-700 mt-0.5 font-medium">Must revise</p>
           </div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Overall accuracy</p>
+        </div>
+
+        {/* Card 7: Tests Taken */}
+        <div
+          onClick={() => onNavigate("test")}
+          className="cursor-pointer rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Practiced</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+              <CheckSquare className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-slate-900">{stats.testsTaken}</span>
+            <p className="text-[9px] text-purple-600 mt-0.5 font-medium">Tests taken</p>
+          </div>
+        </div>
+
+        {/* Card 8: Average Test Score */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xs transition-all hover:border-blue-300 hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Avg Score</span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600">
+              <TrendingUp className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2.5">
+            <span className="text-xl font-black text-blue-600">{stats.averageScore}%</span>
+            <p className="text-[9px] text-emerald-600 mt-0.5 font-bold">Best {stats.bestScore}%</p>
+          </div>
         </div>
       </div>
 

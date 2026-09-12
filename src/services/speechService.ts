@@ -30,12 +30,13 @@ class SpeechService {
 
   public speak(
     text: string,
-    lang: "en" | "ta" = "en",
+    lang: "en" | "ta" | "hi" = "en",
     callbacks?: {
       onStart?: () => void;
       onEnd?: () => void;
       onError?: (err: any) => void;
-    }
+    },
+    rate: number = 1.0
   ) {
     if (!this.synth) {
       console.warn("Speech synthesis is not supported in this browser environment.");
@@ -53,9 +54,12 @@ class SpeechService {
       .replace(/#/g, "")
       .replace(/\*\*/g, "")
       .replace(/\*/g, "")
+      .replace(/```[\s\S]*?```/g, "Code snippet omitted for speech.")
+      .replace(/`([^`]+)`/g, "$1")
       .replace(/[•\-\+]/g, ", ")
       .replace(/Quick Revision:/gi, "Quick Revision summary:")
       .replace(/விரைவு திருப்புதல்/g, "முக்கிய குறிப்புகள்")
+      .replace(/त्वरित दोहराव/g, "महत्वपूर्ण बिंदु")
       .trim();
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -68,6 +72,14 @@ class SpeechService {
       if (tamilVoice) {
         utterance.voice = tamilVoice;
       }
+    } else if (lang === "hi") {
+      utterance.lang = "hi-IN";
+      const hindiVoice = allVoices.find(
+        (v) => v.lang.includes("hi") || v.lang.includes("HIN") || v.name.toLowerCase().includes("hindi")
+      );
+      if (hindiVoice) {
+        utterance.voice = hindiVoice;
+      }
     } else {
       utterance.lang = "en-US";
       const englishVoice =
@@ -79,7 +91,7 @@ class SpeechService {
       }
     }
 
-    utterance.rate = 0.95; // Slightly measured rate for technical clarity
+    utterance.rate = Math.max(0.5, Math.min(rate, 2.0));
     utterance.pitch = 1.0;
 
     utterance.onstart = () => {

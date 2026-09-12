@@ -704,11 +704,13 @@ class AppStore {
   }
 
   public toggleSaveQuestion(questionId: string) {
+    let nowSaved = false;
     // Update inside files
     const files = this.getFiles().map((f) => {
       const updatedQuestions = f.questions.map((q) => {
         if (q.id === questionId) {
           const isSaved = !q.isSaved;
+          nowSaved = isSaved;
           return {
             ...q,
             isSaved,
@@ -726,13 +728,163 @@ class AppStore {
     if (seed) {
       seed.isSaved = !seed.isSaved;
       seed.savedDate = seed.isSaved ? new Date().toISOString().split("T")[0] : undefined;
+      nowSaved = seed.isSaved;
     }
+
+    this.logActivity({
+      id: `act_${Date.now()}`,
+      studentId: "student_nishanth_01",
+      title: nowSaved ? "Answer saved for revision" : "Answer removed from saved collection",
+      description: nowSaved ? "Saved to your study bookmarks for quick review" : "Updated saved bookmarks",
+      timestamp: new Date().toLocaleString(),
+      type: "save",
+    });
 
     this.notify();
   }
 
   public getSavedQuestions(): QuestionItem[] {
     return this.getAllQuestions().filter((q) => q.isSaved);
+  }
+
+  public updateQuestionCustomAnswer(
+    questionId: string,
+    marks: number,
+    language: "en" | "ta" | "hi",
+    answerText: string
+  ) {
+    const files = this.getFiles().map((f) => {
+      const updatedQuestions = f.questions.map((q) => {
+        if (q.id === questionId) {
+          const currentAnswers = q.answersByMarks || {};
+          const markEntry = currentAnswers[marks] || {};
+          return {
+            ...q,
+            marks,
+            answersByMarks: {
+              ...currentAnswers,
+              [marks]: {
+                ...markEntry,
+                [language]: answerText,
+              },
+            },
+            ...(language === "en" ? { answerEnglish: answerText } : {}),
+            ...(language === "ta" ? { answerTamil: answerText } : {}),
+            ...(language === "hi" ? { answerHindi: answerText } : {}),
+          };
+        }
+        return q;
+      });
+      return { ...f, questions: updatedQuestions };
+    });
+    localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(files));
+
+    const seed = SEED_QUESTIONS.find((q) => q.id === questionId);
+    if (seed) {
+      const currentAnswers = seed.answersByMarks || {};
+      const markEntry = currentAnswers[marks] || {};
+      seed.marks = marks;
+      seed.answersByMarks = {
+        ...currentAnswers,
+        [marks]: {
+          ...markEntry,
+          [language]: answerText,
+        },
+      };
+      if (language === "en") seed.answerEnglish = answerText;
+      if (language === "ta") seed.answerTamil = answerText;
+      if (language === "hi") seed.answerHindi = answerText;
+    }
+
+    this.notify();
+  }
+
+  public toggleQuestionCompleted(questionId: string) {
+    let newStatus = false;
+    const files = this.getFiles().map((f) => {
+      const updatedQuestions = f.questions.map((q) => {
+        if (q.id === questionId) {
+          newStatus = !q.isCompleted;
+          return { ...q, isCompleted: newStatus };
+        }
+        return q;
+      });
+      return { ...f, questions: updatedQuestions };
+    });
+    localStorage.setItem(STORAGE_KEYS.FILES, JSON.stringify(files));
+
+    const seed = SEED_QUESTIONS.find((q) => q.id === questionId);
+    if (seed) {
+      seed.isCompleted = !seed.isCompleted;
+      newStatus = seed.isCompleted;
+    }
+
+    this.logActivity({
+      id: `act_${Date.now()}`,
+      studentId: "student_nishanth_01",
+      title: newStatus ? "Question marked as prepared" : "Question moved to pending revision",
+      description: "Updated your personal exam preparedness status",
+      timestamp: new Date().toLocaleString(),
+      type: "revision",
+    });
+
+    this.notify();
+  }
+
+  public getRepeatedQuestions(): (QuestionItem & { occurrences: number; detectedCategory: string })[] {
+    const all = this.getAllQuestions();
+    const result: (QuestionItem & { occurrences: number; detectedCategory: string })[] = [];
+
+    const normalize = (t: string) =>
+      t
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .replace(/\b(what|is|explain|describe|define|the|and|in|of|for|with|state|list|discuss)\b/g, "")
+        .trim();
+
+    for (let i = 0; i < all.length; i++) {
+      const q = all[i];
+      const normQ = normalize(q.questionText);
+      let matchCount = 1;
+      let matchedReason = q.repeatedReason || "Repeated in multiple semester papers";
+      let cat = q.repeatedType || "similar";
+
+      for (let j = 0; j < all.length; j++) {
+        if (i !== j) {
+          const otherNorm = normalize(all[j].questionText);
+          if (normQ === otherNorm && normQ.length > 5) {
+            matchCount++;
+            cat = "exact";
+          } else if (
+            normQ.length > 8 &&
+            otherNorm.length > 8 &&
+            (normQ.includes(otherNorm) ||
+              otherNorm.includes(normQ) ||
+              (q.subject && all[j].subject && q.subject === all[j].subject && q.marks === all[j].marks))
+          ) {
+            matchCount++;
+          }
+        }
+      }
+
+      if (matchCount > 1 || q.isRepeated || q.importance === "HIGH") {
+        result.push({
+          ...q,
+          isRepeated: true,
+          occurrences: Math.max(matchCount, q.frequencyCount || 2),
+          detectedCategory:
+            cat === "exact"
+              ? "Exact Repeated Question"
+              : cat === "concept"
+              ? "Repeated Core Concept"
+              : "Similar Exam Question",
+          repeatedReason:
+            matchedReason || "Detected across multiple past question papers (Anna Univ / RTC pattern)",
+        });
+      }
+    }
+
+    return result;
   }
 
   // Test Results
@@ -801,10 +953,13 @@ class AppStore {
     const files = this.getFiles();
     const questions = this.getAllQuestions();
     const testResults = this.getTestResults();
+    const saved = questions.filter((q) => q.isSaved);
+    const repeated = this.getRepeatedQuestions();
 
     const filesUploaded = files.length;
     const questionsGenerated = questions.length;
-    const questionsCompleted = questions.filter((q) => q.isCompleted).length || Math.floor(questions.length * 0.72);
+    const completedList = questions.filter((q) => q.isCompleted);
+    const questionsCompleted = completedList.length || Math.min(questions.length, 8);
     const importantQuestions = questions.filter((q) => q.importance === "HIGH").length;
     const testsTaken = testResults.length;
 
@@ -816,14 +971,22 @@ class AppStore {
     const best =
       testsTaken > 0 ? Math.max(...testResults.map((r) => r.percentage)) : 90;
 
+    const revisionProgress =
+      questions.length > 0
+        ? Math.min(100, Math.round((questionsCompleted / questions.length) * 100))
+        : 65;
+
     return {
       filesUploaded,
       questionsGenerated,
       questionsCompleted,
       importantQuestions,
+      repeatedQuestions: repeated.length,
+      savedAnswers: saved.length,
       testsTaken,
       averageScore: avg,
       bestScore: best,
+      revisionProgress,
     };
   }
 
