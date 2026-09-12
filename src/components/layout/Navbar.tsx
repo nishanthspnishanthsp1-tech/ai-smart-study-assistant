@@ -27,12 +27,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenMobileMenu,
   onLogout,
+  onSelectSearch,
   onOpenDocs,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const isStudent = currentUser?.role === "student";
   const activities = appStore.getActivities().slice(0, 5);
+
+  const matchingQuestions =
+    searchTerm.trim().length >= 2
+      ? appStore
+          .getAllQuestions()
+          .filter(
+            (q) =>
+              q.questionText.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              q.subject.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+          .slice(0, 5)
+      : [];
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim() && onSelectSearch) {
+      onSelectSearch(searchTerm.trim());
+      setShowSearchDropdown(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-6">
@@ -68,16 +90,65 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Middle: Search bar (desktop) */}
       <div className="hidden max-w-md flex-1 px-6 md:block">
-        <div className="relative">
+        <form onSubmit={handleSearchSubmit} className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search questions, subjects, notes..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-xs text-slate-800 transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
+            onFocus={() => setShowSearchDropdown(true)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowSearchDropdown(true);
+            }}
+            placeholder="Search questions, subjects, topics..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-8 text-xs text-slate-800 transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
-        </div>
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setShowSearchDropdown(false);
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {/* Quick Search Matches Dropdown */}
+          {showSearchDropdown && matchingQuestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in">
+              <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Matching Questions ({matchingQuestions.length})
+              </div>
+              <div className="space-y-1">
+                {matchingQuestions.map((q) => (
+                  <div
+                    key={q.id}
+                    onClick={() => {
+                      if (onSelectSearch) {
+                        onSelectSearch(q.questionText);
+                      }
+                      setShowSearchDropdown(false);
+                    }}
+                    className="cursor-pointer rounded-xl p-2 text-xs hover:bg-blue-50/70 transition-colors"
+                  >
+                    <div className="flex items-center justify-between text-[10px] text-blue-700 font-semibold mb-0.5">
+                      <span>{q.subject}</span>
+                      <span className="rounded bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold">
+                        {q.marks} Marks
+                      </span>
+                    </div>
+                    <p className="line-clamp-2 font-medium text-slate-800 text-xs">
+                      {q.questionText}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
       </div>
 
       {/* Right: Actions, Portal Toggle & User Profile */}

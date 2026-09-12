@@ -255,10 +255,23 @@ export const FileUploadPage: React.FC<FileUploadPageProps> = ({
             <span className="text-[11px] font-semibold text-slate-400">Quick Test Material:</span>
             <button
               onClick={() => {
+                setSubject("Operating Systems");
                 const dummyFile = new File(
-                  ["Operating Systems Exam Question Paper - Rathinam Technical Campus"],
-                  "OS_Semester_Question_Bank_2024.pdf",
-                  { type: "application/pdf" }
+                  [
+                    "Operating Systems Semester Exam Question Paper - Rathinam Technical Campus\nDepartment of AI&DS (2nd Year)\n\n" +
+                    "Unit 1: Process and CPU Scheduling\n" +
+                    "Q1: What is Process Synchronization? Explain Critical Section Problem and Peterson's Solution. (10 Marks)\n" +
+                    "Q2: Define a Process and illustrate the Process State Transition Diagram with PCB. (5 Marks)\n" +
+                    "Q3: Compare Preemptive vs Non-Preemptive CPU Scheduling algorithms with Gantt chart example. (10 Marks)\n\n" +
+                    "Unit 2: Deadlocks and Concurrency\n" +
+                    "Q4: What are the four necessary conditions for Deadlock? Explain Banker's Algorithm for deadlock avoidance. (16 Marks)\n" +
+                    "Q5: Define Semaphore. Differentiate between Binary and Counting Semaphores with wait() and signal() operations. (5 Marks)\n\n" +
+                    "Unit 3: Memory Management\n" +
+                    "Q6: Explain Paging and Segmentation memory management schemes. What is Page Fault and Belady's Anomaly? (13 Marks)\n" +
+                    "Q7: What is Virtual Memory and Thrashing? How does working-set model prevent thrashing? (5 Marks)"
+                  ],
+                  "OS_Semester_Question_Bank_2024.txt",
+                  { type: "text/plain" }
                 );
                 handleFileSelected(dummyFile);
               }}
@@ -268,10 +281,22 @@ export const FileUploadPage: React.FC<FileUploadPageProps> = ({
             </button>
             <button
               onClick={() => {
+                setSubject("Artificial Intelligence");
                 const dummyFile = new File(
-                  ["Artificial Intelligence Anna University Model Question Paper"],
-                  "AI_Unit1_5_Question_Bank.pdf",
-                  { type: "application/pdf" }
+                  [
+                    "Artificial Intelligence & Machine Learning Model Question Paper - Rathinam Technical Campus\nDepartment of AI&DS (2nd Year)\n\n" +
+                    "Unit 1: Problem Solving & Search Strategies\n" +
+                    "Q1: Explain A* Search Algorithm. Prove that A* with an admissible heuristic is complete and optimal. (13 Marks)\n" +
+                    "Q2: What is an Intelligent Agent? Describe the PEAS environment representation for an Autonomous Driving Agent. (5 Marks)\n" +
+                    "Q3: Explain Alpha-Beta Pruning in adversarial game playing with an evaluation tree. (10 Marks)\n\n" +
+                    "Unit 2: Knowledge Representation & Logic\n" +
+                    "Q4: Explain First-Order Logic (FOL) with syntax, semantics, and Resolution refutation principle. (10 Marks)\n\n" +
+                    "Unit 3: Machine Learning & Neural Networks\n" +
+                    "Q5: Explain the Architecture of Artificial Neural Networks (ANN) and Backpropagation gradient descent algorithm. (16 Marks)\n" +
+                    "Q6: Describe Support Vector Machines (SVM). Explain Maximum Margin Hyperplane and Kernel Trick. (10 Marks)"
+                  ],
+                  "AI_Unit1_5_Question_Bank.txt",
+                  { type: "text/plain" }
                 );
                 handleFileSelected(dummyFile);
               }}

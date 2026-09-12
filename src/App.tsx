@@ -237,6 +237,7 @@ export default function App() {
               files={files}
               initialSelectedFile={selectedFileForTest}
               onNavigateToDashboard={() => setActiveTab("dashboard")}
+              onNavigateToUpload={() => setActiveTab("upload")}
             />
           )}
 

@@ -22,12 +22,14 @@ interface TestPageProps {
   files: UploadedFile[];
   initialSelectedFile?: UploadedFile | null;
   onNavigateToDashboard: () => void;
+  onNavigateToUpload?: () => void;
 }
 
 export const TestPage: React.FC<TestPageProps> = ({
   files,
   initialSelectedFile,
   onNavigateToDashboard,
+  onNavigateToUpload,
 }) => {
   const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(
     initialSelectedFile || files[0] || null
@@ -179,6 +181,53 @@ export const TestPage: React.FC<TestPageProps> = ({
 
   // State: SELECT FILE
   if (testState === "SELECT") {
+    if (files.length === 0) {
+      return (
+        <div className="space-y-6 pb-12">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <CheckSquare className="h-6 w-6 text-blue-600" />
+              Semester Practice Test (1-Mark Questions)
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Generate an AI-powered 1-mark objective test based directly on your uploaded study materials.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-8 text-center shadow-xs max-w-xl mx-auto my-8">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-4">
+              <FileText className="h-7 w-7" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">No Study Materials Uploaded Yet</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+              To take an AI practice test, upload a semester question paper or question bank first, or load our pre-compiled academic materials.
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+              {onNavigateToUpload && (
+                <button
+                  onClick={onNavigateToUpload}
+                  className="w-full sm:w-auto rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-colors"
+                >
+                  Upload Study Material
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  const initial = appStore.getFiles();
+                  if (initial.length > 0) {
+                    setSelectedFile(initial[0]);
+                  }
+                }}
+                className="w-full sm:w-auto rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                Reload Default Study Banks
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6 pb-12">
         <div>

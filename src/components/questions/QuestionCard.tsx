@@ -77,57 +77,127 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setIsPaused(false);
   };
 
-  // Helper to format markdown headings & bold text simply without bulky parser
+  const handleSwitchLang = (newLang: "en" | "ta") => {
+    if (newLang !== lang) {
+      if (isPlaying) {
+        speechService.stop();
+        setIsPlaying(false);
+        setIsPaused(false);
+      }
+      setLang(newLang);
+    }
+  };
+
+  // Helper to format markdown headings, bold text, inline code & code blocks
   const renderFormattedAnswer = (content: string) => {
-    const lines = content.split("\n");
-    return (
-      <div className="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
-        {lines.map((line, idx) => {
-          if (line.startsWith("### ")) {
-            return (
-              <h4 key={idx} className="font-bold text-slate-900 text-sm sm:text-base mt-3 mb-1 flex items-center gap-1.5 text-blue-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-600"></span>
-                {line.replace("### ", "")}
-              </h4>
-            );
-          }
-          if (line.startsWith("## ")) {
-            return (
-              <h3 key={idx} className="font-bold text-slate-900 text-base sm:text-lg mt-4 mb-2 text-blue-950">
-                {line.replace("## ", "")}
-              </h3>
-            );
-          }
-          if (line.startsWith("- ") || line.startsWith("• ")) {
-            return (
-              <div key={idx} className="flex items-start gap-2 pl-2">
-                <span className="text-blue-500 font-bold">•</span>
-                <p
-                  className="flex-1"
-                  dangerouslySetInnerHTML={{
-                    __html: line
-                      .replace(/^[-•]\s*/, "")
-                      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>'),
-                  }}
-                />
-              </div>
-            );
-          }
-          if (line.trim().length === 0) {
-            return <div key={idx} className="h-1" />;
-          }
-          return (
+    const rawLines = content.split("\n");
+    const elements: React.ReactNode[] = [];
+    let inCodeBlock = false;
+    let codeBuffer: string[] = [];
+
+    rawLines.forEach((line, idx) => {
+      if (line.trim().startsWith("```")) {
+        if (inCodeBlock) {
+          elements.push(
+            <pre
+              key={`code-${idx}`}
+              className="bg-slate-900 text-emerald-300 rounded-xl p-3 my-2 font-mono text-xs overflow-x-auto shadow-inner border border-slate-800"
+            >
+              <code>{codeBuffer.join("\n")}</code>
+            </pre>
+          );
+          codeBuffer = [];
+          inCodeBlock = false;
+        } else {
+          inCodeBlock = true;
+        }
+        return;
+      }
+
+      if (inCodeBlock) {
+        codeBuffer.push(line);
+        return;
+      }
+
+      if (line.startsWith("### ")) {
+        elements.push(
+          <h4
+            key={idx}
+            className="font-bold text-slate-900 text-sm sm:text-base mt-3 mb-1 flex items-center gap-1.5 text-blue-900"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600"></span>
+            {line.replace("### ", "")}
+          </h4>
+        );
+        return;
+      }
+      if (line.startsWith("## ")) {
+        elements.push(
+          <h3
+            key={idx}
+            className="font-bold text-slate-900 text-base sm:text-lg mt-4 mb-2 text-blue-950"
+          >
+            {line.replace("## ", "")}
+          </h3>
+        );
+        return;
+      }
+      if (line.startsWith("- ") || line.startsWith("• ")) {
+        elements.push(
+          <div key={idx} className="flex items-start gap-2 pl-2">
+            <span className="text-blue-500 font-bold">•</span>
             <p
-              key={idx}
+              className="flex-1"
               dangerouslySetInnerHTML={{
-                __html: line.replace(
-                  /\*\*(.*?)\*\*/g,
-                  '<strong class="font-bold text-slate-900">$1</strong>'
-                ),
+                __html: line
+                  .replace(/^[-•]\s*/, "")
+                  .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
+                  .replace(
+                    /`([^`]+)`/g,
+                    '<code class="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-xs border border-slate-200">$1</code>'
+                  ),
               }}
             />
-          );
-        })}
+          </div>
+        );
+        return;
+      }
+      if (line.trim().length === 0) {
+        elements.push(<div key={idx} className="h-1" />);
+        return;
+      }
+      elements.push(
+        <p
+          key={idx}
+          dangerouslySetInnerHTML={{
+            __html: line
+              .replace(
+                /\*\*(.*?)\*\*/g,
+                '<strong class="font-bold text-slate-900">$1</strong>'
+              )
+              .replace(
+                /`([^`]+)`/g,
+                '<code class="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded font-mono text-xs border border-slate-200">$1</code>'
+              ),
+          }}
+        />
+      );
+    });
+
+    if (inCodeBlock && codeBuffer.length > 0) {
+      elements.push(
+        <pre
+          key="code-remaining"
+          className="bg-slate-900 text-emerald-300 rounded-xl p-3 my-2 font-mono text-xs overflow-x-auto shadow-inner border border-slate-800"
+        >
+          <code>{codeBuffer.join("\n")}</code>
+        </pre>
+      );
+    }
+
+    return (
+      <div className="space-y-2 text-xs sm:text-sm text-slate-700 leading-relaxed">
+        {elements}
       </div>
     );
   };
@@ -185,7 +255,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {/* Language Selector */}
           <div className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200/60">
             <button
-              onClick={() => setLang("en")}
+              onClick={() => handleSwitchLang("en")}
               className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
                 lang === "en" ? "bg-white text-blue-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
@@ -193,7 +263,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               English
             </button>
             <button
-              onClick={() => setLang("ta")}
+              onClick={() => handleSwitchLang("ta")}
               className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
                 lang === "ta" ? "bg-white text-blue-700 shadow-xs" : "text-slate-500 hover:text-slate-800"
               }`}
@@ -299,7 +369,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             </span>
           </div>
           <button
-            onClick={() => setLang(lang === "en" ? "ta" : "en")}
+            onClick={() => handleSwitchLang(lang === "en" ? "ta" : "en")}
             className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
           >
             <Languages className="h-3 w-3" />

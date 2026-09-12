@@ -9,6 +9,7 @@ import {
   Building,
   GraduationCap,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import { StudentProfile } from "../../types";
 import { ManageStudentsModal } from "./ManageStudentsModal";
@@ -18,6 +19,7 @@ export const AdminStudentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "blocked">("ALL");
   const [inspectingStudent, setInspectingStudent] = useState<StudentProfile | null>(null);
+  const [pendingToggleStudent, setPendingToggleStudent] = useState<StudentProfile | null>(null);
   const [version, setVersion] = useState(0); // Trigger re-render
 
   const students = appStore.getStudents();
@@ -32,18 +34,12 @@ export const AdminStudentsPage: React.FC = () => {
     return s.status === statusFilter;
   });
 
-  const handleQuickToggleBlock = (s: StudentProfile) => {
-    const nextStatus = s.status === "active" ? "blocked" : "active";
-    if (
-      window.confirm(
-        nextStatus === "blocked"
-          ? `Are you sure you want to block ${s.name}? Blocked students cannot access the study assistant.`
-          : `Are you sure you want to unblock ${s.name}?`
-      )
-    ) {
-      appStore.updateStudentStatus(s.uid, nextStatus);
-      setVersion((v) => v + 1);
-    }
+  const handleConfirmToggleBlock = () => {
+    if (!pendingToggleStudent) return;
+    const nextStatus = pendingToggleStudent.status === "active" ? "blocked" : "active";
+    appStore.updateStudentStatus(pendingToggleStudent.uid, nextStatus);
+    setPendingToggleStudent(null);
+    setVersion((v) => v + 1);
   };
 
   return (
@@ -157,7 +153,7 @@ export const AdminStudentsPage: React.FC = () => {
                       </button>
 
                       <button
-                        onClick={() => handleQuickToggleBlock(student)}
+                        onClick={() => setPendingToggleStudent(student)}
                         className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                           student.status === "active"
                             ? "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
@@ -174,6 +170,57 @@ export const AdminStudentsPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Confirmation Modal for Block/Unblock */}
+      {pendingToggleStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl shrink-0 ${
+                  pendingToggleStudent.status === "active"
+                    ? "bg-rose-100 text-rose-600"
+                    : "bg-emerald-100 text-emerald-600"
+                }`}
+              >
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  {pendingToggleStudent.status === "active"
+                    ? `Block ${pendingToggleStudent.name}?`
+                    : `Unblock ${pendingToggleStudent.name}?`}
+                </h3>
+                <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
+                  {pendingToggleStudent.status === "active"
+                    ? `Are you sure you want to block ${pendingToggleStudent.name} (${pendingToggleStudent.email})? Blocked students cannot log in or use the study assistant until restored.`
+                    : `Are you sure you want to restore full portal access for ${pendingToggleStudent.name}?`}
+                </p>
+                <div className="mt-5 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setPendingToggleStudent(null)}
+                    className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmToggleBlock}
+                    className={`rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors ${
+                      pendingToggleStudent.status === "active"
+                        ? "bg-rose-600 hover:bg-rose-700"
+                        : "bg-emerald-600 hover:bg-emerald-700"
+                    }`}
+                  >
+                    Confirm {pendingToggleStudent.status === "active" ? "Block" : "Unblock"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Inspection Modal */}
       {inspectingStudent && (

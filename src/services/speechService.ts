@@ -38,7 +38,7 @@ class SpeechService {
     }
   ) {
     if (!this.synth) {
-      alert("Speech synthesis is not supported in this browser.");
+      console.warn("Speech synthesis is not supported in this browser environment.");
       callbacks?.onError?.("Speech synthesis not supported");
       return;
     }
